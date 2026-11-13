@@ -24,7 +24,6 @@
 ===================================================================== */
 const SUPABASE_URL      = "https://sagwceqtknklpgwhgtaj.supabase.co";   // contoh: "https://abcdefgh.supabase.co"
 const SUPABASE_ANON_KEY = "sb_publishable_BvD6CyYx2Zy_GoXaG2pjuA_Oz8FOHPT";   // anon / publishable key (bukan service_role)
-
 /* Pendaftaran mandiri. false = hanya Administrator yang membuat akun lewat
    Supabase Dashboard > Authentication > Users > Add user (centang auto confirm). */
 const ALLOW_SIGNUP = false;
@@ -253,6 +252,7 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
       <button data-tab="peta"    class="tab-btn px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-2 whitespace-nowrap"><i data-lucide="map" class="w-4 h-4"></i> Peta jaringan</button>
       <button data-tab="panel"   class="tab-btn px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-2 whitespace-nowrap"><i data-lucide="box" class="w-4 h-4"></i> Panel</button>
       <button data-tab="kabel"   class="tab-btn px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-2 whitespace-nowrap"><i data-lucide="cable" class="w-4 h-4"></i> Jalur kabel</button>
+      <button data-tab="titik"   class="tab-btn px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-2 whitespace-nowrap"><i data-lucide="lightbulb" class="w-4 h-4"></i> Titik aset</button>
       <button data-tab="dampak"  class="tab-btn px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-2 whitespace-nowrap"><i data-lucide="git-branch" class="w-4 h-4"></i> Dampak &amp; hierarki</button>
       <button data-tab="check"   class="tab-btn px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-2 whitespace-nowrap"><i data-lucide="clipboard-check" class="w-4 h-4"></i> Inspeksi</button>
       <button data-tab="log"     class="tab-btn px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-2 whitespace-nowrap"><i data-lucide="history" class="w-4 h-4"></i> Riwayat</button>
@@ -278,16 +278,19 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
     <select id="fArea"    class="px-3 py-2 text-sm border border-line"><option value="">Semua area</option></select>
     <select id="fJenis"   class="px-3 py-2 text-sm border border-line"><option value="">Semua jenis</option></select>
     <select id="fStatus"  class="px-3 py-2 text-sm border border-line"><option value="">Semua status</option></select>
+    <select id="fKondisi" class="px-3 py-2 text-sm border border-line"><option value="">Semua kondisi</option></select>
 
     <button id="btnTambah" class="btn bg-cyan2 text-ink-900 border-cyan2"><i data-lucide="plus" class="w-4 h-4"></i> Panel</button>
     <div class="relative">
       <button id="btnMenu" class="btn"><i data-lucide="more-horizontal" class="w-4 h-4"></i> Data</button>
-      <div id="menu" hidden class="absolute right-0 mt-1 w-64 bg-ink-800 border border-line rounded-lg p-1.5 z-[600] text-sm">
+      <div id="menu" hidden class="absolute right-0 mt-1 w-72 bg-ink-800 border border-line rounded-lg p-1.5 z-[900] text-sm max-h-[70vh] overflow-y-auto">
         <button data-act="imporPanel" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Impor CSV panel</button>
         <button data-act="imporKabel" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Impor CSV kabel</button>
+        <button data-act="imporTitik" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Impor CSV titik (PJU / petir)</button>
         <button data-act="eksporPanel" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Ekspor CSV panel</button>
         <button data-act="eksporKomponen" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Ekspor CSV komponen</button>
         <button data-act="eksporKabel" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Ekspor CSV kabel</button>
+        <button data-act="eksporTitik" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Ekspor CSV titik</button>
         <button data-act="geojson" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Ekspor GeoJSON (panel + kabel)</button>
         <button data-act="contoh" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700">Isi data contoh</button>
         <button data-act="wipe" class="w-full text-left px-3 py-2 rounded hover:bg-ink-700 text-off">Hapus semua data</button>
@@ -295,6 +298,7 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
     </div>
     <input id="fileCsvPanel" type="file" accept=".csv,text/csv" hidden>
     <input id="fileCsvKabel" type="file" accept=".csv,text/csv" hidden>
+    <input id="fileCsvTitik" type="file" accept=".csv,text/csv" hidden>
   </div>
 
   <!-- statistik -->
@@ -308,22 +312,33 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
     <div class="border border-line rounded overflow-hidden relative bg-ink-800">
       <div id="map" class="w-full" style="height:min(74vh,760px)"></div>
 
-      <div class="absolute right-3 top-3 z-[600] flex flex-col gap-2 items-end">
+      <div class="absolute right-3 top-3 z-[400] flex flex-col gap-2 items-end">
         <button id="btnPaskan" class="btn bg-ink-800/95 backdrop-blur"><i data-lucide="maximize" class="w-3.5 h-3.5 text-cyan2"></i> Paskan tampilan</button>
         <button id="btnPindah" class="btn bg-ink-800/95 backdrop-blur"><i data-lucide="move" class="w-3.5 h-3.5 text-cyan2"></i> Mode pindah panel</button>
         <button id="btnGambar" class="btn bg-ink-800/95 backdrop-blur"><i data-lucide="pen-line" class="w-3.5 h-3.5 text-cyan2"></i> Gambar jalur kabel</button>
-        <label class="btn bg-ink-800/95 backdrop-blur cursor-pointer"><input id="cbLabel" type="checkbox" class="accent-current"> Tampilkan panjang kabel</label>
-        <div class="bg-ink-800/95 backdrop-blur border border-line rounded-lg px-3 py-2 text-[11px] leading-relaxed">
-          <div class="font-semibold mb-1">Keterangan</div>
-          <div class="flex items-center gap-1.5"><span style="display:inline-block;width:18px;height:3px;background:#ef4444"></span> Kabel TM 20 kV</div>
-          <div class="flex items-center gap-1.5"><span style="display:inline-block;width:18px;height:3px;background:#5ea2ff"></span> Kabel TR</div>
-          <div class="flex items-center gap-1.5"><span style="display:inline-block;width:18px;height:0;border-top:3px dashed #94a3b8"></span> Jalur udara</div>
-          <div class="flex items-center gap-1.5 mt-1"><span class="pin pin-on pin-induk" style="width:14px;height:14px"></span> Panel induk / gardu</div>
-          <div class="flex items-center gap-1.5"><span class="pin pin-on" style="width:12px;height:12px"></span> Panel lain</div>
+        <label class="btn bg-ink-800/95 backdrop-blur cursor-pointer"><input id="cbLabel" type="checkbox" class="accent-current"> Panjang kabel</label>
+        <label class="btn bg-ink-800/95 backdrop-blur cursor-pointer"><input id="cbTitik" type="checkbox" class="accent-current" checked> Titik PJU &amp; petir</label>
+        <div id="hintZoom" class="bg-ink-800/95 backdrop-blur border border-line rounded-lg px-3 py-2 text-[11px] text-slate-500 max-w-[220px] leading-relaxed">
+          Perbesar peta untuk melihat tiap panel sebagai penanda dan membuka detailnya.
         </div>
       </div>
 
-      <div id="panelGambar" hidden class="absolute left-1/2 -translate-x-1/2 bottom-4 z-[600] w-[min(640px,94%)]
+      <button id="btnLegenda" class="absolute left-3 bottom-3 z-[400] btn bg-ink-800/95 backdrop-blur">
+        <i data-lucide="info" class="w-3.5 h-3.5 text-cyan2"></i> Keterangan
+      </button>
+      <div id="legenda" hidden class="absolute left-3 bottom-3 z-[401] bg-ink-800/95 backdrop-blur border border-line rounded-lg px-3 py-2 text-[11px] leading-relaxed">
+        <div class="flex items-center gap-2 mb-1"><span class="font-semibold">Keterangan</span>
+          <button id="legendaTutup" class="ml-auto text-slate-500 hover:text-off"><i data-lucide="x" class="w-3 h-3"></i></button></div>
+        <div class="flex items-center gap-1.5"><span style="display:inline-block;width:18px;height:3px;background:#ef4444"></span> Kabel TM 20 kV</div>
+        <div class="flex items-center gap-1.5"><span style="display:inline-block;width:18px;height:3px;background:#5ea2ff"></span> Kabel TR</div>
+        <div class="flex items-center gap-1.5"><span style="display:inline-block;width:18px;height:0;border-top:3px dashed #94a3b8"></span> Jalur udara</div>
+        <div class="flex items-center gap-1.5 mt-1"><span class="pin pin-on pin-induk" style="width:14px;height:14px"></span> Gardu / panel induk</div>
+        <div class="flex items-center gap-1.5"><span class="pin pin-on" style="width:12px;height:12px"></span> Panel lain</div>
+        <div class="flex items-center gap-1.5 mt-1"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b"></span> Titik PJU</div>
+        <div class="flex items-center gap-1.5"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#a855f7"></span> Penangkal petir</div>
+      </div>
+
+      <div id="panelGambar" hidden class="absolute left-1/2 -translate-x-1/2 bottom-4 z-[420] w-[min(640px,94%)]
            bg-ink-800/95 backdrop-blur border border-line rounded-lg shadow-2xl p-4">
         <div class="flex items-center gap-2 mb-2">
           <i data-lucide="cable" class="w-4 h-4 text-cyan2"></i>
@@ -363,6 +378,17 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
       <span class="text-xs text-slate-500">Jalur yang digambar di peta otomatis terhitung panjangnya.</span>
     </div>
     <div id="kabelTable" class="overflow-x-auto border border-line rounded bg-ink-800"></div>
+  </section>
+
+  <!-- ===== TITIK ASET ===== -->
+  <section id="tab-titik" hidden class="space-y-3">
+    <div class="grid gap-2 md:grid-cols-5" id="titikStats"></div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input id="titikQ" type="search" placeholder="Cari kode, cluster, jenis lampu…" class="px-3 py-2 text-sm border border-line flex-1 max-w-sm">
+      <select id="titikJenis" class="px-3 py-2 text-sm border border-line"><option value="">Semua jenis titik</option></select>
+      <span class="text-xs text-slate-500" id="titikCount">—</span>
+    </div>
+    <div id="titikTable" class="overflow-x-auto border border-line rounded bg-ink-800"></div>
   </section>
 
   <!-- ===== DAMPAK ===== -->
@@ -434,8 +460,14 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
         <label class="text-sm">Tegangan
           <select id="fTegangan" class="inp"></select>
         </label>
-        <label class="text-sm">Status
+        <label class="text-sm">Status operasi
           <select id="fStatusPanel" class="inp"></select>
+        </label>
+        <label class="text-sm">Kondisi fisik
+          <select id="fKondisiPanel" class="inp"></select>
+        </label>
+        <label class="text-sm">Kode helper / lama
+          <input id="fHelper" class="inp font-mono" placeholder="A070020">
         </label>
       </div>
 
@@ -450,8 +482,11 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
             <input id="fClusterIn" list="dlCluster" placeholder="Taman Golf" class="inp">
             <datalist id="dlCluster"></datalist>
           </label>
-          <label class="text-sm md:col-span-2">Patokan / alamat
-            <input id="fAlamat" placeholder="Depan pos jaga blok C" class="inp">
+          <label class="text-sm">Jalan
+            <input id="fJalan" placeholder="Permata Sari IVA" class="inp">
+          </label>
+          <label class="text-sm">Patokan / lokasi
+            <input id="fAlamat" placeholder="A7 No. 20" class="inp">
           </label>
           <label class="text-sm">Latitude
             <input id="fLat" inputmode="decimal" placeholder="-6.22350" class="inp font-mono">
@@ -491,6 +526,15 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
           </label>
           <label class="text-sm">PIC / vendor
             <input id="fPic" class="inp">
+          </label>
+          <label class="text-sm">Kapasitas trafo (kVA)
+            <input id="fKva" inputmode="numeric" class="inp font-mono" placeholder="1054">
+          </label>
+          <label class="text-sm">Kelas gardu
+            <input id="fKelas" class="inp" placeholder="GARDU SUB INDUK">
+          </label>
+          <label class="text-sm">Dimensi bangunan
+            <input id="fDimensi" class="inp" placeholder="8.35 x 4.6 x 3.6 m">
           </label>
         </div>
       </fieldset>
@@ -636,7 +680,10 @@ const uid = (p='p') => p + Date.now().toString(36) + Math.random().toString(36).
 const num = v => (v === '' || v === null || v === undefined || isNaN(+v)) ? null : +v;
 
 const JENIS_PANEL = ['Gardu / Trafo','Panel Induk (LVMDP)','Panel Distribusi (SDP)','Panel PJU',
-                     'Panel Pompa','Panel Fasilitas','Panel Cluster','Panel Sementara','Lainnya'];
+                     'Panel SR','Panel KWH','Panel Pompa','Panel Fasilitas','Panel Cluster',
+                     'Panel Sementara','Lainnya'];
+const KONDISI     = ['Baik','Sedang','Buruk'];
+const JENIS_TITIK = ['PJU','Penangkal Petir'];
 const TEGANGAN    = ['TR 380/220 V','TR 220 V','TM 20 kV'];
 const STATUS      = ['Normal','Gangguan','Pemeliharaan'];
 const KOMP_JENIS  = ['NH Fuse','LBS','MCCB','MCB','ACB','Kontaktor','Timer','Photocell','kWh Meter',
@@ -682,9 +729,24 @@ const sb = CLOUD ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
 let session = null;
 let panels  = [];
 let kabels  = [];
+let titiks  = [];
 
 const keyPanel = () => 'listriktmd_panel::' + (session?.email || 'anon');
 const keyKabel = () => 'listriktmd_kabel::' + (session?.email || 'anon');
+const keyTitik = () => 'listriktmd_titik::' + (session?.email || 'anon');
+
+const fromTitik = r => ({ id:r.id, kode:r.kode||'', jenis:r.jenis||'PJU', kodeAsal:r.kode_asal||'',
+  panelIdAsal:r.panel_id_asal||'', area:r.area||'', cluster:r.cluster||'', jalan:r.jalan||'',
+  lokasi:r.lokasi||'', helper:r.helper||'', lat:r.lat ?? '', lng:r.lng ?? '',
+  jenisTiang:r.jenis_tiang||'', tinggiM:r.tinggi_m ?? '', jmlLampu:r.jml_lampu ?? '',
+  jenisLampu:r.jenis_lampu||'', dayaW:r.daya_w ?? '', stang:r.stang||'',
+  fidAsal:r.fid_asal||'', catatan:r.catatan||'' });
+const toTitik = t => ({ id:t.id, kode:t.kode||null, jenis:t.jenis||'PJU', kode_asal:t.kodeAsal||null,
+  panel_id_asal:t.panelIdAsal||null, area:t.area||null, cluster:t.cluster||null, jalan:t.jalan||null,
+  lokasi:t.lokasi||null, helper:t.helper||null, lat:num(t.lat), lng:num(t.lng),
+  jenis_tiang:t.jenisTiang||null, tinggi_m:num(t.tinggiM), jml_lampu:num(t.jmlLampu),
+  jenis_lampu:t.jenisLampu||null, daya_w:num(t.dayaW), stang:t.stang||null,
+  fid_asal:t.fidAsal||null, catatan:t.catatan||null });
 
 const fromPanel = r => ({
   id:r.id, kode:r.kode||'', nama:r.nama||'', jenis:r.jenis||'', tegangan:r.tegangan||'',
@@ -693,6 +755,8 @@ const fromPanel = r => ({
   daya:r.daya_va ?? '', amp:r.kapasitas_a ?? '', meter:r.no_meter||'', merk:r.merk||'',
   tglPasang:r.tgl_pasang||'', pic:r.pic||'', jmlUnit:r.jml_unit ?? '', jmlPju:r.jml_pju ?? '',
   fasilitas:r.fasilitas||'', unit:r.unit_list||'', catatan:r.catatan||'',
+  kondisi:r.kondisi||'', jalan:r.jalan||'', helper:r.helper||'', kva:r.kva ?? '',
+  kelas:r.kelas||'', dimensi:r.dimensi||'', fidAsal:r.fid_asal||'',
   komponen: Array.isArray(r.komponen) ? r.komponen : []
 });
 const toPanel = p => ({
@@ -702,6 +766,8 @@ const toPanel = p => ({
   daya_va:num(p.daya), kapasitas_a:num(p.amp), no_meter:p.meter||null, merk:p.merk||null,
   tgl_pasang:p.tglPasang||null, pic:p.pic||null, jml_unit:num(p.jmlUnit), jml_pju:num(p.jmlPju),
   fasilitas:p.fasilitas||null, unit_list:p.unit||null, catatan:p.catatan||null,
+  kondisi:p.kondisi||null, jalan:p.jalan||null, helper:p.helper||null, kva:num(p.kva),
+  kelas:p.kelas||null, dimensi:p.dimensi||null, fid_asal:p.fidAsal||null,
   komponen:p.komponen||[]
 });
 const fromKabel = r => ({
@@ -721,15 +787,45 @@ function simpanLokal(){
   try{
     localStorage.setItem(keyPanel(), JSON.stringify(panels));
     localStorage.setItem(keyKabel(), JSON.stringify(kabels));
-  }catch(e){ toast('Penyimpanan browser penuh', 'err'); }
+    localStorage.setItem(keyTitik(), JSON.stringify(titiks));
+  }catch(e){ toast('Penyimpanan browser penuh — pakai mode Supabase untuk data sebesar ini', 'err'); }
+}
+
+/* Supabase menolak payload raksasa, jadi upsert dipecah per 400 baris. */
+async function kirimBertahap(tabel, baris, konflik, lapor){
+  for(let i = 0; i < baris.length; i += 400){
+    const { error } = await sb.from(tabel).upsert(baris.slice(i, i+400), { onConflict:konflik });
+    if(error) throw error;
+    if(lapor) lapor(Math.min(i+400, baris.length), baris.length);
+  }
 }
 
 const api = {
+  async listTitik(){
+    if(!CLOUD){ try{ return JSON.parse(localStorage.getItem(keyTitik()) || '[]'); }catch{ return []; } }
+    const hasil = [];
+    for(let dari = 0; ; dari += 1000){
+      const { data, error } = await sb.from('titik').select('*').order('kode').range(dari, dari+999);
+      if(error) throw error;
+      hasil.push(...(data||[]).map(fromTitik));
+      if(!data || data.length < 1000) break;
+    }
+    return hasil;
+  },
+  async simpanBanyakTitik(arr, lapor){
+    if(!CLOUD){ arr.forEach(t => { const i = titiks.findIndex(x => x.kode === t.kode); i>-1 ? titiks[i]={...t, id:titiks[i].id} : titiks.push(t); }); return simpanLokal(); }
+    await kirimBertahap('titik', arr.map(toTitik), 'kode', lapor);
+  },
   async listPanel(){
     if(!CLOUD){ try{ return JSON.parse(localStorage.getItem(keyPanel()) || '[]'); }catch{ return []; } }
-    const { data, error } = await sb.from('panel').select('*').order('kode');
-    if(error) throw error;
-    return (data||[]).map(fromPanel);
+    const hasil = [];
+    for(let dari = 0; ; dari += 1000){
+      const { data, error } = await sb.from('panel').select('*').order('kode').range(dari, dari+999);
+      if(error) throw error;
+      hasil.push(...(data||[]).map(fromPanel));
+      if(!data || data.length < 1000) break;
+    }
+    return hasil;
   },
   async listKabel(){
     if(!CLOUD){ try{ return JSON.parse(localStorage.getItem(keyKabel()) || '[]'); }catch{ return []; } }
@@ -767,10 +863,9 @@ const api = {
     const { error } = await sb.from('kabel').delete().eq('id', id);
     if(error) throw error;
   },
-  async simpanBanyakPanel(arr){
+  async simpanBanyakPanel(arr, lapor){
     if(!CLOUD){ arr.forEach(p=>{ const i = panels.findIndex(x=>x.kode===p.kode); i>-1 ? panels[i]={...p, id:panels[i].id} : panels.push(p); }); return simpanLokal(); }
-    const { error } = await sb.from('panel').upsert(arr.map(toPanel), { onConflict:'kode' });
-    if(error) throw error;
+    await kirimBertahap('panel', arr.map(toPanel), 'kode', lapor);
   },
   async simpanBanyakKabel(arr){
     if(!CLOUD){ arr.forEach(k=>{ const i = kabels.findIndex(x=>x.kode===k.kode && k.kode); i>-1 ? kabels[i]={...k, id:kabels[i].id} : kabels.push(k); }); return simpanLokal(); }
@@ -778,10 +873,11 @@ const api = {
     if(error) throw error;
   },
   async wipe(){
-    if(!CLOUD){ panels = []; kabels = []; return simpanLokal(); }
-    const ids = panels.map(p=>p.id);
-    if(kabels.length) await sb.from('kabel').delete().in('id', kabels.map(k=>k.id));
-    if(ids.length){ const { error } = await sb.from('panel').delete().in('id', ids); if(error) throw error; }
+    if(!CLOUD){ panels = []; kabels = []; titiks = []; return simpanLokal(); }
+    await sb.from('kabel').delete().neq('id', '');
+    await sb.from('titik').delete().neq('id', '');
+    const { error } = await sb.from('panel').delete().neq('id', '');
+    if(error) throw error;
   },
   async listInspeksi(limit=60){
     if(!CLOUD){ try{ return JSON.parse(localStorage.getItem('listriktmd_ck::'+(session?.email||'anon')) || '[]'); }catch{ return []; } }
@@ -887,9 +983,9 @@ $('#btnLogout').onclick = async () => {
 };
 
 /* ===================== STATE ===================== */
-let state = { tab:'peta', view:'grid', q:'', cluster:'', area:'', jenis:'', status:'' };
+let state = { tab:'peta', view:'grid', q:'', cluster:'', area:'', jenis:'', status:'', kondisi:'' };
 let ck = { items:{}, catatan:{} };
-let map, lapisPanel, lapisKabel, modePindah = false, modeGambar = false, pasSekali = false;
+let map, lapisPanel, lapisKabel, lapisTitik, kanvas, modePindah = false, modeGambar = false, pasSekali = false;
 let gambar = { dari:null, ke:null, titik:[], garis:null, penanda:[] };
 
 function terfilter(){
@@ -899,8 +995,9 @@ function terfilter(){
     if(state.area && p.area !== state.area) return false;
     if(state.jenis && p.jenis !== state.jenis) return false;
     if(state.status && p.status !== state.status) return false;
+    if(state.kondisi && p.kondisi !== state.kondisi) return false;
     if(!q) return true;
-    return [p.kode,p.nama,p.alamat,p.cluster,p.area,p.unit,p.fasilitas,p.idpel,p.merk,p.pic]
+    return [p.kode,p.nama,p.alamat,p.cluster,p.area,p.unit,p.fasilitas,p.idpel,p.merk,p.pic,p.helper,p.jalan,p.kelas]
       .some(v => String(v || '').toLowerCase().includes(q));
   });
 }
@@ -953,7 +1050,7 @@ function renderStats(){
     kotak('Normal', f.filter(p=>p.status==='Normal').length, 'text-on') +
     kotak('Gangguan', f.filter(p=>p.status==='Gangguan').length, 'text-off') +
     kotak('Pemeliharaan', f.filter(p=>p.status==='Pemeliharaan').length, 'text-maint') +
-    kotak('Unit terdata', fmtN(f.reduce((t,p)=>t+jumlahUnit(p),0))) +
+    kotak('Titik PJU', fmtN(titiks.filter(t=>t.jenis==='PJU').length)) +
     kotak('Panjang kabel', fmtM(totalM), 'text-cyan2');
 }
 function isiFilter(){
@@ -966,6 +1063,7 @@ function isiFilter(){
   set('#fArea',    uniq('area'),    state.area,    'Semua area');
   set('#fJenis',   JENIS_PANEL,     state.jenis,   'Semua jenis');
   set('#fStatus',  STATUS,          state.status,  'Semua status');
+  set('#fKondisi', KONDISI,         state.kondisi, 'Semua kondisi');
   $('#dlCluster').innerHTML = uniq('cluster').map(v=>`<option value="${esc(v)}">`).join('');
   $('#dlArea').innerHTML    = uniq('area').map(v=>`<option value="${esc(v)}">`).join('');
   $('#dlKabel').innerHTML   = KABEL_JENIS.map(v=>`<option value="${esc(v)}">`).join('');
@@ -991,6 +1089,7 @@ function renderGrid(){
         <span class="chip">${esc(p.jenis || 'Jenis —')}</span>
         <span class="chip">${esc(p.tegangan || 'Tegangan —')}</span>
         ${p.cluster ? `<span class="chip">${esc(p.cluster)}</span>` : ''}
+        ${p.kondisi ? `<span class="chip ${p.kondisi==='Buruk'?'text-off':p.kondisi==='Sedang'?'text-maint':''}">Kondisi ${esc(p.kondisi)}</span>` : ''}
       </div>
       <div class="mt-2 grid grid-cols-3 gap-2 text-center">
         <div><div class="text-[10px] text-slate-500">Komponen</div><div class="font-bold text-sm ${rusak?'text-off':''}">${komp}${rusak?` · ${rusak} rusak`:''}</div></div>
@@ -1014,6 +1113,7 @@ function renderList(){
       <th class="text-left p-2">ID panel</th><th class="text-left p-2">Nama</th>
       <th class="text-left p-2">Jenis</th><th class="text-left p-2">Tegangan</th>
       <th class="text-left p-2">Cluster</th><th class="text-left p-2">Area</th>
+      <th class="text-left p-2">Kondisi</th><th class="text-left p-2">Helper</th>
       <th class="text-left p-2">Sumber</th><th class="text-right p-2">Komp.</th>
       <th class="text-right p-2">Unit</th><th class="text-left p-2">Status</th>
       <th class="text-right p-2 col-aksi">Aksi</th>
@@ -1025,6 +1125,8 @@ function renderList(){
       <td class="p-1.5">${sel(p,'tegangan',TEGANGAN)}</td>
       <td class="p-1.5">${inp(p,'cluster')}</td>
       <td class="p-1.5">${inp(p,'area')}</td>
+      <td class="p-1.5">${sel(p,'kondisi',KONDISI)}</td>
+      <td class="p-1.5 font-mono text-xs">${inp(p,'helper')}</td>
       <td class="p-1.5 text-xs text-slate-500">${esc(p.sumberId ? namaPanel(p.sumberId) : '—')}</td>
       <td class="p-1.5 text-right">${(p.komponen||[]).length}</td>
       <td class="p-1.5 text-right">${fmtN(jumlahUnit(p))}</td>
@@ -1086,18 +1188,53 @@ function initMap(){
   map = L.map('map', { zoomControl:true }).setView(PETA_AWAL, ZOOM_AWAL);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     { maxZoom:21, maxNativeZoom:19, attribution:'&copy; OpenStreetMap' }).addTo(map);
+  kanvas     = L.canvas({ padding:0.3 });
+  lapisTitik = L.layerGroup().addTo(map);
   lapisKabel = L.layerGroup().addTo(map);
   lapisPanel = L.layerGroup().addTo(map);
   map.on('click', e => { if(modeGambar && gambar.dari && !gambar.ke) tambahTitik([e.latlng.lat, e.latlng.lng]); });
+  /* ribuan penanda tidak terbaca kalau zoom jauh — ganti bentuk saat melewati batas */
+  map.on('zoomend', () => { if(bandZoom() !== bandTerakhir) renderMap(); });
+  /* saat zoom dekat, hanya gambar penanda yang ada di layar supaya tetap ringan */
+  let tGeser; map.on('moveend', () => {
+    if(bandZoom() !== 'dekat') return;
+    clearTimeout(tGeser); tGeser = setTimeout(renderMap, 220);
+  });
 }
 const koor = p => (p && p.lat !== '' && p.lng !== '' && isFinite(+p.lat) && isFinite(+p.lng)) ? [+p.lat, +p.lng] : null;
 const warnaKabel = k => k.status === 'Tidak aktif' ? '#64748b'
   : k.status === 'Rencana' ? '#94a3b8'
   : /TM/i.test(k.tegangan || '') ? '#ef4444' : '#5ea2ff';
 
+const WARNA_TITIK  = { 'PJU':'#f59e0b', 'Penangkal Petir':'#a855f7' };
+const WARNA_STATUS = { on:'#10d9a3', off:'#ff4d5e', maint:'#ffb020' };
+const ZOOM_DETAIL = 16;
+const bandZoom = () => (map && map.getZoom() >= ZOOM_DETAIL) ? 'dekat' : 'jauh';
+let bandTerakhir = null;
+function renderTitikPeta(){
+  lapisTitik.clearLayers();
+  if(!$('#cbTitik').checked) return;
+  const f = titiks.filter(t => (!state.cluster || t.cluster === state.cluster) &&
+                               (!state.area || t.area === state.area));
+  f.forEach(t => {
+    if(t.lat === '' || t.lng === '' || !isFinite(+t.lat) || !isFinite(+t.lng)) return;
+    const m = L.circleMarker([+t.lat, +t.lng], { renderer:kanvas, radius:bandZoom()==='dekat'?5:2.5, weight:1,
+      color:'#0b1017', fillColor:WARNA_TITIK[t.jenis] || '#94a3b8', fillOpacity:.9 }).addTo(lapisTitik);
+    m.bindPopup(`<div class="text-sm"><div class="font-bold">${esc(t.kode)}</div>
+      <div class="text-xs mt-1">${esc(t.jenis)}${t.kodeAsal ? ' · ' + esc(t.kodeAsal) : ''}</div>
+      <div class="text-xs">${esc(t.cluster||'')} ${esc(t.area||'')}</div>
+      ${t.jenis === 'PJU' ? `<div class="text-xs mt-1">${esc(t.jenisLampu||'—')} ${esc(t.dayaW||'')}W ·
+        ${esc(t.jmlLampu||1)} lampu<br>Tiang ${esc(t.jenisTiang||'—')} ${esc(t.tinggiM||'')}m<br>
+        ${esc(t.stang||'')}</div>` : `<div class="text-xs mt-1">${esc(t.lokasi||'')} ${esc(t.jalan||'')}</div>`}
+      ${t.panelIdAsal ? `<div class="text-[11px] text-slate-500 mt-1">Panel ID asal: ${esc(t.panelIdAsal)}</div>` : ''}
+      </div>`);
+  });
+}
+
 function renderMap(){
   if(!map) return;
   lapisKabel.clearLayers(); lapisPanel.clearLayers();
+  renderTitikPeta();
   const tampilLabel = $('#cbLabel').checked;
 
   kabels.forEach(k => {
@@ -1121,8 +1258,24 @@ function renderMap(){
       { permanent:true, direction:'center', className:'label-kabel' });
   });
 
+  const dekat = bandZoom() === 'dekat';
+  bandTerakhir = bandZoom();
+  const layar = dekat ? map.getBounds().pad(0.25) : null;
   terfilter().forEach(p => {
     const c = koor(p); if(!c) return;
+
+    /* zoom dekat: lewati panel di luar layar agar jumlah penanda tetap wajar */
+    if(dekat && layar && !layar.contains(c) && !isInduk(p)) return;
+
+    /* zoom jauh: panel biasa cukup titik kecil, hanya gardu/induk yang jadi penanda besar */
+    if(!dekat && !modePindah && !isInduk(p)){
+      const cm = L.circleMarker(c, { renderer:kanvas, radius:3.5, weight:1, color:'#0b1017',
+        fillColor:WARNA_STATUS[tone(p.status)], fillOpacity:.95 }).addTo(lapisPanel);
+      cm.on('click', () => modeGambar ? pilihPanelGambar(p) : bukaDetail(p.id));
+      cm.bindTooltip(`${p.kode ? p.kode + ' · ' : ''}${p.nama}`, { direction:'top' });
+      return;
+    }
+
     const kelas = `pin pin-${tone(p.status)} ${isInduk(p) ? 'pin-induk' : ''}` +
       (modePindah ? ' pin-geser' : '') +
       ((modeGambar && (gambar.dari === p.id || gambar.ke === p.id)) ? ' pin-pilih' : '');
@@ -1150,6 +1303,7 @@ function renderMap(){
     if(!modeGambar) mk.bindTooltip(`${p.kode ? p.kode + ' · ' : ''}${p.nama}`, { direction:'top' });
   });
 
+  const hz = $('#hintZoom'); if(hz) hz.hidden = dekat;
   if(!pasSekali){ pasSekali = true; setTimeout(paskan, 150); }
 }
 /* kalau panel digeser, ujung kabel yang menempel ikut pindah */
@@ -1171,6 +1325,7 @@ function paskan(){
   map.invalidateSize();
   const titik = terfilter().map(koor).filter(Boolean);
   kabels.forEach(k => (k.titik||[]).forEach(t => titik.push(t)));
+  if(!titik.length) titiks.forEach(t => { if(t.lat !== '' && isFinite(+t.lat)) titik.push([+t.lat, +t.lng]); });
   if(titik.length) map.fitBounds(L.latLngBounds(titik).pad(0.15), { maxZoom:18 });
 }
 
@@ -1220,6 +1375,67 @@ function perbaruiPanelGambar(){
   $('#gambarHint').innerHTML = !gambar.dari ? 'Langkah 1 — klik <b>panel asal</b> di peta.'
     : !gambar.ke ? 'Langkah 2 — klik di peta untuk menandai belokan jalur, lalu klik <b>panel tujuan</b>.'
     : 'Langkah 3 — klik <b>Simpan jalur</b> untuk mengisi detail kabel.';
+}
+
+/* ===================== TITIK ASET (PJU / PENANGKAL PETIR) ===================== */
+function titikTerfilter(){
+  const q = ($('#titikQ').value || '').toLowerCase();
+  const j = $('#titikJenis').value;
+  return titiks.filter(t => {
+    if(j && t.jenis !== j) return false;
+    if(state.cluster && t.cluster !== state.cluster) return false;
+    if(state.area && t.area !== state.area) return false;
+    if(!q) return true;
+    return [t.kode,t.kodeAsal,t.cluster,t.area,t.jenisLampu,t.jenisTiang,t.stang,t.jalan,t.lokasi,t.helper]
+      .some(v => String(v||'').toLowerCase().includes(q));
+  });
+}
+function renderTitik(){
+  const f = titikTerfilter();
+  const pju = f.filter(t => t.jenis === 'PJU');
+  const dayaTotal = pju.reduce((s,t) => s + (+t.dayaW || 0) * (+t.jmlLampu || 1), 0);
+  const led = pju.filter(t => /LED/i.test(t.jenisLampu||'')).length;
+  const kotak = (l, v, c='text-white') => `<div class="bg-ink-800 border border-line rounded px-3 py-2">
+    <div class="text-[10px] text-slate-500 uppercase tracking-wide">${l}</div>
+    <div class="text-lg font-bold ${c} leading-tight">${v}</div></div>`;
+  $('#titikStats').innerHTML =
+    kotak('Titik PJU', fmtN(pju.length)) +
+    kotak('Penangkal petir', fmtN(f.filter(t=>t.jenis==='Penangkal Petir').length)) +
+    kotak('Beban lampu', (dayaTotal/1000).toFixed(1).replace('.',',') + ' kW', 'text-cyan2') +
+    kotak('Sudah LED', pju.length ? Math.round(led/pju.length*100) + '%' : '—', led ? 'text-on' : 'text-maint') +
+    kotak('Belum LED', fmtN(pju.length - led), 'text-maint');
+
+  const JENIS_ADA = [...new Set(titiks.map(t=>t.jenis))].sort();
+  const pilih = $('#titikJenis');
+  if(pilih.options.length !== JENIS_ADA.length + 1){
+    const v = pilih.value;
+    pilih.innerHTML = '<option value="">Semua jenis titik</option>' +
+      JENIS_ADA.map(j => `<option ${j===v?'selected':''}>${esc(j)}</option>`).join('');
+  }
+  const BATAS = 300;
+  $('#titikCount').textContent = `${fmtN(f.length)} titik` + (f.length > BATAS ? ` · ditampilkan ${BATAS} pertama` : '');
+  $('#titikTable').innerHTML = f.length ? `<table class="w-full text-sm">
+    <thead class="bg-ink-700 text-slate-400"><tr>
+      <th class="text-left p-2">Kode</th><th class="text-left p-2">Jenis</th><th class="text-left p-2">Kode asal</th>
+      <th class="text-left p-2">Cluster</th><th class="text-left p-2">Area</th>
+      <th class="text-left p-2">Lampu</th><th class="text-right p-2">Daya</th><th class="text-right p-2">Jml</th>
+      <th class="text-left p-2">Tiang</th><th class="text-right p-2">Tinggi</th><th class="text-left p-2">Stang</th>
+      <th class="text-right p-2 col-aksi">Peta</th></tr></thead>
+    <tbody>${f.slice(0,BATAS).map(t => `<tr class="border-t border-line">
+      <td class="p-2 font-mono text-xs text-cyan2">${esc(t.kode)}</td>
+      <td class="p-2 text-xs">${esc(t.jenis)}</td>
+      <td class="p-2 font-mono text-[11px]">${esc(t.kodeAsal||'—')}</td>
+      <td class="p-2 text-xs">${esc(t.cluster||'—')}</td>
+      <td class="p-2 text-xs">${esc(t.area||'—')}</td>
+      <td class="p-2 text-xs">${esc(t.jenisLampu||'—')}</td>
+      <td class="p-2 text-right font-mono text-xs">${t.dayaW ? t.dayaW + ' W' : '—'}</td>
+      <td class="p-2 text-right text-xs">${esc(t.jmlLampu||'—')}</td>
+      <td class="p-2 text-xs">${esc(t.jenisTiang||'—')}</td>
+      <td class="p-2 text-right text-xs">${t.tinggiM ? t.tinggiM + ' m' : '—'}</td>
+      <td class="p-2 text-xs">${esc(t.stang||'—')}</td>
+      <td class="p-2 text-right col-aksi"><button class="btn" data-zoomtitik="${esc(t.kode)}"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i></button></td>
+    </tr>`).join('')}</tbody></table>`
+    : '<div class="text-center text-slate-500 py-14 text-sm">Belum ada titik. Impor CSV titik dari menu Data.</div>';
 }
 
 /* ===================== HIERARKI & DAMPAK ===================== */
@@ -1323,6 +1539,8 @@ function bukaForm(id){
   $('#fId').value = p?.id || '';
   const v = (sel, val) => $(sel).value = val ?? '';
   v('#fKode', p?.kode); v('#fNama', p?.nama); v('#fAlamat', p?.alamat);
+  v('#fJalan', p?.jalan); v('#fHelper', p?.helper); v('#fKva', p?.kva);
+  v('#fKelas', p?.kelas); v('#fDimensi', p?.dimensi);
   v('#fAreaIn', p?.area); v('#fClusterIn', p?.cluster);
   v('#fLat', p?.lat); v('#fLng', p?.lng); v('#fPaste', '');
   v('#fIdpel', p?.idpel); v('#fDaya', p?.daya); v('#fAmp', p?.amp);
@@ -1332,6 +1550,8 @@ function bukaForm(id){
   isiSelect('#fJenisPanel', JENIS_PANEL, p?.jenis || 'Panel Distribusi (SDP)');
   isiSelect('#fTegangan', TEGANGAN, p?.tegangan || 'TR 380/220 V');
   isiSelect('#fStatusPanel', STATUS, p?.status || 'Normal');
+  $('#fKondisiPanel').innerHTML = '<option value="">—</option>' +
+    KONDISI.map(k => `<option ${k === p?.kondisi ? 'selected' : ''}>${esc(k)}</option>`).join('');
   $('#fSumber').innerHTML = '<option value="">— tidak ada / langsung dari PLN —</option>' +
     panels.filter(x => x.id !== id).map(x =>
       `<option value="${x.id}" ${x.id === p?.sumberId ? 'selected' : ''}>${esc(x.kode ? x.kode+' — '+x.nama : x.nama)}</option>`).join('');
@@ -1376,6 +1596,10 @@ $('#form').addEventListener('submit', async e => {
     meter:$('#fMeter').value.trim(), merk:$('#fMerk').value.trim(), tglPasang:$('#fTgl').value,
     pic:$('#fPic').value.trim(), jmlUnit:$('#fJmlUnit').value.trim(), jmlPju:$('#fJmlPju').value.trim(),
     fasilitas:$('#fFasilitas').value.trim(), unit, catatan:$('#fCatatan').value.trim(),
+    kondisi:$('#fKondisiPanel').value, jalan:$('#fJalan').value.trim(),
+    helper:$('#fHelper').value.trim(), kva:$('#fKva').value.trim(),
+    kelas:$('#fKelas').value.trim(), dimensi:$('#fDimensi').value.trim(),
+    fidAsal:(byId($('#fId').value)?.fidAsal) || '',
     komponen: bacaKomponen()
   };
   if(p.sumberId === id) return toast('Panel tidak boleh jadi sumber dirinya sendiri', 'err');
@@ -1482,7 +1706,10 @@ function bukaDetail(id){
       ${p.cluster ? `<span class="chip">${esc(p.cluster)}</span>` : ''}${p.area ? `<span class="chip">${esc(p.area)}</span>` : ''}</div>
     <div class="grid md:grid-cols-2 gap-x-6">
       <div>
+        ${baris('Jalan', esc(p.jalan))}
         ${baris('Patokan', esc(p.alamat))}
+        ${baris('Kondisi fisik', p.kondisi ? `<span class="${p.kondisi==='Buruk'?'text-off':p.kondisi==='Sedang'?'text-maint':'text-on'}">${esc(p.kondisi)}</span>` : '')}
+        ${baris('Kode helper', esc(p.helper))}
         ${baris('Koordinat', p.lat!==''&&p.lng!=='' ? `<span class="font-mono">${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}</span>` : '')}
         ${baris('Panel sumber', p.sumberId ? esc(namaPanel(p.sumberId)) : 'langsung dari PLN')}
         ${baris('ID pelanggan', esc(p.idpel))}
@@ -1490,6 +1717,9 @@ function bukaDetail(id){
         ${baris('Kapasitas utama', p.amp ? fmtN(p.amp) + ' A' : '')}
       </div>
       <div>
+        ${baris('Kapasitas trafo', p.kva ? fmtN(p.kva) + ' kVA' : '')}
+        ${baris('Kelas gardu', esc(p.kelas))}
+        ${baris('Dimensi', esc(p.dimensi))}
         ${baris('No. kWh meter', esc(p.meter))}
         ${baris('Merk / tipe', esc(p.merk))}
         ${baris('Tanggal pasang', esc(p.tglPasang))}
@@ -1654,8 +1884,11 @@ $('#logReload').onclick = () => { logRows = null; renderLog(); };
 let tLog; $('#logQ').addEventListener('input', () => { clearTimeout(tLog); tLog = setTimeout(renderLog, 180); });
 
 /* ===================== CSV & GEOJSON ===================== */
-const KOL_PANEL = ['kode','nama','jenis','tegangan','status','area','cluster','alamat','lat','lng',
-  'sumberKode','idpel','daya','amp','meter','merk','tglPasang','pic','jmlUnit','jmlPju','fasilitas','unit','catatan'];
+const KOL_PANEL = ['kode','nama','jenis','tegangan','status','kondisi','area','cluster','jalan','alamat',
+  'lat','lng','sumberKode','helper','kva','kelas','dimensi','idpel','daya','amp','meter','merk',
+  'tglPasang','pic','jmlUnit','jmlPju','fasilitas','unit','catatan','fidAsal'];
+const KOL_TITIK = ['kode','jenis','kodeAsal','panelIdAsal','area','cluster','jalan','lokasi','helper',
+  'lat','lng','jenisTiang','tinggiM','jmlLampu','jenisLampu','dayaW','stang','fidAsal','catatan'];
 const KOL_KABEL = ['kode','dariKode','keKode','jenis','ukuran','tegangan','sistem','status','tglPasang',
   'slack','panjangUkur','titik','catatan'];
 
@@ -1717,28 +1950,55 @@ function eksporGeoJSON(){
   ];
   unduh('jaringan-listrik.geojson', JSON.stringify({ type:'FeatureCollection', features:fitur }, null, 2), 'application/geo+json');
 }
+function eksporTitik(){ unduh('titik-aset.csv', keCsv(KOL_TITIK, titiks)); }
+async function imporTitik(file){
+  const rows = dariCsv(await file.text());
+  if(!rows.length) return toast('CSV kosong', 'err');
+  const baru = rows.map(r => ({
+    id:uid('t'), kode:r.kode || uid('t'), jenis:r.jenis || 'PJU', kodeAsal:r.kodeAsal||'',
+    panelIdAsal:r.panelIdAsal||'', area:r.area||'', cluster:r.cluster||'', jalan:r.jalan||'',
+    lokasi:r.lokasi||'', helper:r.helper||'', lat:r.lat||'', lng:r.lng||'',
+    jenisTiang:r.jenisTiang||'', tinggiM:r.tinggiM||'', jmlLampu:r.jmlLampu||'',
+    jenisLampu:r.jenisLampu||'', dayaW:r.dayaW||'', stang:r.stang||'', fidAsal:r.fidAsal||'',
+    catatan:r.catatan||''
+  }));
+  try{
+    toast(`Mengunggah ${baru.length} titik…`, 'warn');
+    await api.simpanBanyakTitik(baru, (n, t) => { if(n % 2000 === 0) toast(`${n}/${t} titik terkirim`); });
+    titiks = await api.listTitik();
+    render(); toast(`${baru.length} titik diimpor`);
+  }catch(e){ toast('Gagal impor: ' + e.message, 'err'); }
+}
+
 async function imporPanel(file){
   const rows = dariCsv(await file.text());
   if(!rows.length) return toast('CSV kosong', 'err');
   const baru = rows.map(r => ({
     id:uid('p'), kode:r.kode||'', nama:r.nama||r.kode||'(tanpa nama)', jenis:r.jenis||'', tegangan:r.tegangan||'',
-    status:STATUS.includes(r.status) ? r.status : 'Normal', area:r.area||'', cluster:r.cluster||'',
-    alamat:r.alamat||'', lat:r.lat||'', lng:r.lng||'', sumberId:'', idpel:r.idpel||'', daya:r.daya||'',
+    status:STATUS.includes(r.status) ? r.status : 'Normal', kondisi:r.kondisi||'',
+    area:r.area||'', cluster:r.cluster||'', jalan:r.jalan||'',
+    alamat:r.alamat||'', lat:r.lat||'', lng:r.lng||'', sumberId:'', helper:r.helper||'',
+    kva:r.kva||'', kelas:r.kelas||'', dimensi:r.dimensi||'', fidAsal:r.fidAsal||'',
+    idpel:r.idpel||'', daya:r.daya||'',
     amp:r.amp||'', meter:r.meter||'', merk:r.merk||'', tglPasang:r.tglPasang||'', pic:r.pic||'',
     jmlUnit:r.jmlUnit||'', jmlPju:r.jmlPju||'', fasilitas:r.fasilitas||'', unit:r.unit||'',
     catatan:r.catatan||'', komponen:[], _sumberKode:r.sumberKode||''
   }));
   try{
+    toast(`Mengunggah ${baru.length} panel…`, 'warn');
     await api.simpanBanyakPanel(baru.map(({_sumberKode, ...p}) => p));
     panels = await api.listPanel();
     /* hubungkan sumber setelah semua kode ada */
-    for(const b of baru.filter(x => x._sumberKode)){
-      const anak = panels.find(p => p.kode === b.kode);
-      const induk = panels.find(p => p.kode === b._sumberKode);
-      if(anak && induk && anak.sumberId !== induk.id){
-        anak.sumberId = induk.id;
-        await api.patchPanel(anak.id, { sumber_id:induk.id });
+    const perluSumber = baru.filter(x => x._sumberKode);
+    if(perluSumber.length){
+      toast(`Menyambungkan ${perluSumber.length} panel ke gardunya…`, 'warn');
+      const ubah = [];
+      for(const b of perluSumber){
+        const anak = panels.find(p => p.kode === b.kode);
+        const induk = panels.find(p => p.kode === b._sumberKode);
+        if(anak && induk && anak.sumberId !== induk.id){ anak.sumberId = induk.id; ubah.push(anak); }
       }
+      if(CLOUD && ubah.length) await kirimBertahap('panel', ubah.map(toPanel), 'kode');
     }
     if(!CLOUD) simpanLokal();
     render(); toast(`${baru.length} panel diimpor`);
@@ -1773,7 +2033,7 @@ function render(){
     b.classList.toggle('bg-cyan2', aktif); b.classList.toggle('text-ink-900', aktif);
     b.classList.toggle('text-slate-400', !aktif);
   });
-  ['peta','panel','kabel','dampak','check','log'].forEach(t => $('#tab-' + t).hidden = t !== state.tab);
+  ['peta','panel','kabel','titik','dampak','check','log'].forEach(t => $('#tab-' + t).hidden = t !== state.tab);
   $$('.view-btn').forEach(b => {
     const aktif = b.dataset.view === state.view;
     b.classList.toggle('bg-cyan2', aktif); b.classList.toggle('text-ink-900', aktif);
@@ -1786,6 +2046,7 @@ function render(){
   }
   if(state.tab === 'peta'){ renderMap(); setTimeout(() => map && map.invalidateSize(), 60); }
   if(state.tab === 'kabel')  renderKabel();
+  if(state.tab === 'titik')  renderTitik();
   if(state.tab === 'dampak') renderPohon();
   if(state.tab === 'check')  renderCek();
   if(state.tab === 'log')    renderLog();
@@ -1798,7 +2059,7 @@ $$('.view-btn').forEach(b => b.onclick = () => { state.view = b.dataset.view; re
 let tCari; $('#q').addEventListener('input', e => {
   clearTimeout(tCari); tCari = setTimeout(() => { state.q = e.target.value; render(); }, 160);
 });
-['#fCluster','#fArea','#fJenis','#fStatus'].forEach(sel => $(sel).addEventListener('change', e => {
+['#fCluster','#fArea','#fJenis','#fStatus','#fKondisi'].forEach(sel => $(sel).addEventListener('change', e => {
   state[sel.replace('#f','').toLowerCase()] = e.target.value; render();
 }));
 
@@ -1806,6 +2067,11 @@ $('#btnTambah').onclick = () => bolehEdit() ? bukaForm(null) : toast('Peran Anda
 $('#btnTambahKabel').onclick = () => bolehEdit() ? bukaKabel(null) : toast('Peran Anda hanya boleh melihat', 'err');
 $('#btnPaskan').onclick = paskan;
 $('#cbLabel').onchange = renderMap;
+$('#cbTitik').onchange = renderMap;
+$('#btnLegenda').onclick = () => { $('#legenda').hidden = false; $('#btnLegenda').hidden = true; lucide.createIcons(); };
+$('#legendaTutup').onclick = () => { $('#legenda').hidden = true; $('#btnLegenda').hidden = false; };
+let tTitik; $('#titikQ').addEventListener('input', () => { clearTimeout(tTitik); tTitik = setTimeout(renderTitik, 180); });
+$('#titikJenis').addEventListener('change', renderTitik);
 $('#btnPindah').onclick = () => {
   if(!bolehEdit()) return toast('Peran Anda hanya boleh melihat', 'err');
   modePindah = !modePindah;
@@ -1840,10 +2106,12 @@ $('#menu').addEventListener('click', async e => {
   if(act === 'eksporPanel')    return eksporPanel();
   if(act === 'eksporKomponen') return eksporKomponen();
   if(act === 'eksporKabel')    return eksporKabel();
+  if(act === 'eksporTitik')    return eksporTitik();
   if(act === 'geojson')        return eksporGeoJSON();
   if(!bolehEdit()) return toast('Peran Anda hanya boleh melihat', 'err');
   if(act === 'imporPanel') return $('#fileCsvPanel').click();
   if(act === 'imporKabel') return $('#fileCsvKabel').click();
+  if(act === 'imporTitik') return $('#fileCsvTitik').click();
   if(act === 'contoh')     return isiContoh();
   if(act === 'wipe'){
     if(!isAdmin()) return toast('Hanya Administrator', 'err');
@@ -1854,6 +2122,7 @@ $('#menu').addEventListener('click', async e => {
 });
 $('#fileCsvPanel').onchange = e => { if(e.target.files[0]) imporPanel(e.target.files[0]); e.target.value = ''; };
 $('#fileCsvKabel').onchange = e => { if(e.target.files[0]) imporKabel(e.target.files[0]); e.target.value = ''; };
+$('#fileCsvTitik').onchange = e => { if(e.target.files[0]) imporTitik(e.target.files[0]); e.target.value = ''; };
 
 /* klik global: buka / ubah / hapus / simpul / kabel */
 document.addEventListener('click', async e => {
@@ -1884,6 +2153,15 @@ document.addEventListener('click', async e => {
 
   const uk = e.target.closest('[data-ubahkabel]');
   if(uk){ map && map.closePopup(); bukaKabel(uk.dataset.ubahkabel); return; }
+
+  const zt = e.target.closest('[data-zoomtitik]');
+  if(zt){
+    const t = titiks.find(x => x.kode === zt.dataset.zoomtitik);
+    if(!t || t.lat === '') return toast('Titik ini tanpa koordinat', 'warn');
+    state.tab = 'peta'; render();
+    setTimeout(() => map.setView([+t.lat, +t.lng], 19), 120);
+    return;
+  }
 
   const zk = e.target.closest('[data-zoomkabel]');
   if(zk){
@@ -2010,6 +2288,7 @@ async function mulai(){
   try{
     panels = await api.listPanel();
     kabels = await api.listKabel();
+    titiks = await api.listTitik();
   }catch(e){ toast('Gagal memuat data: ' + e.message, 'err'); }
   if(!map) initMap();
   if(CLOUD && session?.role === 'pending')
@@ -2021,7 +2300,11 @@ async function mulai(){
 (async function boot(){
   lucide.createIcons();
   setAuthMode('login');
-  $('#tabSignup').hidden = CLOUD && !ALLOW_SIGNUP;
+  /* kalau pendaftaran mandiri dimatikan, tab Masuk/Daftar tidak perlu muncul
+     — kalau tidak, tab "Masuk" terlihat seperti tombol kembar di atas form */
+  const tanpaDaftar = CLOUD && !ALLOW_SIGNUP;
+  $('#tabSignup').hidden = tanpaDaftar;
+  $('#authTabs').hidden  = tanpaDaftar;
   $('#modeNote').textContent = CLOUD
     ? 'Terhubung ke Supabase. Data dipakai bersama satu tim.'
     : 'Mode lokal: data hanya tersimpan di browser ini dan tidak dibagikan. Isi SUPABASE_URL dan SUPABASE_ANON_KEY di bagian atas file untuk mode tim.';
