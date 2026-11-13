@@ -106,6 +106,18 @@ article:hover{ transform:translateY(-1px) }
 .pin-geser{ cursor:grab; box-shadow:0 0 0 4px rgba(245,158,11,.45), 0 0 0 9px rgba(245,158,11,.16) !important }
 .pin-geser:active{ cursor:grabbing }
 .pin-pilih{ box-shadow:0 0 0 5px rgb(var(--c-accent)/.55), 0 0 0 11px rgb(var(--c-accent)/.2) !important }
+.bentuk{ border:2px solid rgb(var(--c-bg)); box-sizing:border-box }
+.b-lingkaran{ border-radius:50% }
+.b-kotak{ border-radius:3px }
+.b-segitiga{ border:none; clip-path:polygon(50% 0,100% 100%,0 100%) }
+.b-belah{ border:none; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%) }
+.b-bintang{ border:none; clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%) }
+#panelLayer .baris-layer{ border:1px solid rgb(var(--c-line)); border-radius:12px; padding:8px; margin-bottom:8px;
+  background:rgb(var(--c-raised)) }
+#panelLayer select, #panelLayer input[type=color]{ width:100%; margin-top:3px; background:rgb(var(--c-raised-2));
+  border:1px solid rgb(var(--c-line)); border-radius:8px; padding:3px 6px; font-size:11px; color:rgb(var(--c-text)) }
+#panelLayer input[type=color]{ height:26px; padding:2px }
+.swatch{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px }
 .titik-bantu{ width:10px; height:10px; border-radius:50%; background:#f59e0b; border:2px solid #fff }
 .leaflet-container{ background:rgb(var(--c-raised)) }
 .leaflet-popup-content-wrapper,.leaflet-popup-tip{ background:rgb(var(--c-surface)); color:rgb(var(--c-text)); border:1px solid rgb(var(--c-line)) }
@@ -131,6 +143,15 @@ article:hover{ transform:translateY(-1px) }
 thead .col-aksi{ background:rgb(var(--c-raised)) }
 tbody tr:hover .col-aksi{ background:rgb(var(--c-raised)) }
 thead{ font-size:.75rem; text-transform:uppercase; letter-spacing:.04em }
+/* tabel panel & titik: gulir di dalam kotaknya sendiri supaya kepala tabel
+   dan tombol Kartu/Tabel tidak ikut terbawa saat halaman digulir */
+#viewList, #titikTable, #kabelTable{ max-height:calc(100vh - 300px); overflow:auto }
+#viewList thead th, #titikTable thead th, #kabelTable thead th{
+  position:sticky; top:0; z-index:3; background:rgb(var(--c-raised));
+  box-shadow:0 1px 0 rgb(var(--c-line)) }
+#viewList thead th.col-aksi, #titikTable thead th.col-aksi, #kabelTable thead th.col-aksi{ z-index:4 }
+#barisTampilan{ position:sticky; top:calc(var(--tinggi-header,150px)); z-index:40;
+  background:rgb(var(--c-bg)); padding:6px 0 }
 tbody tr:hover{ background:rgb(var(--c-raised)/.6) }
 
 /* ---------- pohon hierarki ---------- */
@@ -314,6 +335,7 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
       <div id="map" class="w-full" style="height:min(74vh,760px)"></div>
 
       <div class="absolute right-3 top-3 z-[400] flex flex-col gap-2 items-end">
+        <button id="btnLayer" class="btn bg-ink-800/95 backdrop-blur"><i data-lucide="layers" class="w-3.5 h-3.5 text-cyan2"></i> Layer</button>
         <button id="btnPaskan" class="btn bg-ink-800/95 backdrop-blur"><i data-lucide="maximize" class="w-3.5 h-3.5 text-cyan2"></i> Paskan tampilan</button>
         <button id="btnPindah" class="btn bg-ink-800/95 backdrop-blur"><i data-lucide="move" class="w-3.5 h-3.5 text-cyan2"></i> Mode pindah panel</button>
         <button id="btnGambar" class="btn bg-ink-800/95 backdrop-blur"><i data-lucide="pen-line" class="w-3.5 h-3.5 text-cyan2"></i> Gambar jalur kabel</button>
@@ -322,6 +344,28 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
         <div id="hintZoom" class="bg-ink-800/95 backdrop-blur border border-line rounded-lg px-3 py-2 text-[11px] text-slate-500 max-w-[220px] leading-relaxed">
           Perbesar peta untuk melihat tiap panel sebagai penanda dan membuka detailnya.
         </div>
+      </div>
+
+      <div id="panelLayer" hidden class="absolute right-3 top-3 z-[430] w-[310px] max-h-[82%] overflow-y-auto
+           bg-ink-800/97 backdrop-blur border border-line rounded-lg p-3 text-sm shadow-2xl">
+        <div class="flex items-center gap-2 mb-3">
+          <i data-lucide="layers" class="w-4 h-4 text-cyan2"></i>
+          <span class="font-bold text-white">Layer peta</span>
+          <button id="layerTutup" class="ml-auto text-slate-500 hover:text-off"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div id="layerAset"></div>
+        <div class="border-t border-line mt-2 pt-2">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="font-semibold text-xs">Cluster</span>
+            <span id="layerClusterInfo" class="text-[11px] text-slate-500"></span>
+            <button id="layerClusterSemua" class="ml-auto text-[11px] text-cyan2">Semua</button>
+            <button id="layerClusterKosong" class="text-[11px] text-slate-500">Kosongkan</button>
+          </div>
+          <input id="layerClusterCari" type="search" placeholder="Cari cluster…"
+                 class="w-full px-2 py-1 text-xs border border-line rounded mb-2">
+          <div id="layerCluster" class="max-h-44 overflow-y-auto space-y-0.5 text-xs"></div>
+        </div>
+        <div id="layerLegenda" class="border-t border-line mt-2 pt-2 text-[11px]"></div>
       </div>
 
       <button id="btnLegenda" class="absolute left-3 bottom-3 z-[400] btn bg-ink-800/95 backdrop-blur">
@@ -335,8 +379,7 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
         <div class="flex items-center gap-1.5"><span style="display:inline-block;width:18px;height:0;border-top:3px dashed #94a3b8"></span> Jalur udara</div>
         <div class="flex items-center gap-1.5 mt-1"><span class="pin pin-on pin-induk" style="width:14px;height:14px"></span> Gardu / panel induk</div>
         <div class="flex items-center gap-1.5"><span class="pin pin-on" style="width:12px;height:12px"></span> Panel lain</div>
-        <div class="flex items-center gap-1.5 mt-1"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b"></span> Titik PJU</div>
-        <div class="flex items-center gap-1.5"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#a855f7"></span> Penangkal petir</div>
+        <div class="text-slate-500 mt-1">Bentuk &amp; warna penanda diatur di tombol <b>Layer</b>.</div>
       </div>
 
       <div id="panelGambar" hidden class="absolute left-1/2 -translate-x-1/2 bottom-4 z-[420] w-[min(640px,94%)]
@@ -360,7 +403,7 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
 
   <!-- ===== PANEL ===== -->
   <section id="tab-panel" hidden class="space-y-3">
-    <div class="flex items-center gap-2">
+    <div id="barisTampilan" class="flex items-center gap-2">
       <div class="flex gap-1 bg-ink-700 p-1 rounded border border-line">
         <button data-view="grid" class="view-btn px-3 py-1.5 rounded text-sm font-semibold">Kartu</button>
         <button data-view="list" class="view-btn px-3 py-1.5 rounded text-sm font-semibold">Tabel</button>
@@ -1213,20 +1256,136 @@ const warnaKabel = k => k.status === 'Tidak aktif' ? '#64748b'
   : k.status === 'Rencana' ? '#94a3b8'
   : /TM/i.test(k.tegangan || '') ? '#ef4444' : '#5ea2ff';
 
-const WARNA_TITIK  = { 'PJU':'#f59e0b', 'Penangkal Petir':'#a855f7' };
-const WARNA_STATUS = { on:'#10d9a3', off:'#ff4d5e', maint:'#ffb020' };
+const WARNA_STATUS  = { on:'#10d9a3', off:'#ff4d5e', maint:'#ffb020' };
+const WARNA_KONDISI = { 'Baik':'#10d9a3', 'Sedang':'#ffb020', 'Buruk':'#ff4d5e' };
 const ZOOM_DETAIL = 16;
 const bandZoom = () => (map && map.getZoom() >= ZOOM_DETAIL) ? 'dekat' : 'jauh';
 let bandTerakhir = null;
+
+/* ---------- layer peta ---------- */
+const PALET = ['#5ea2ff','#f59e0b','#10d9a3','#ef4444','#a855f7','#14b8a6','#f472b6','#84cc16',
+               '#0ea5e9','#fb923c','#22c55e','#e11d48','#8b5cf6','#06b6d4','#eab308','#f97316',
+               '#3b82f6','#d946ef','#65a30d','#dc2626'];
+const BENTUK = ['lingkaran','kotak','segitiga','belah','bintang'];
+const NAMA_BENTUK = { lingkaran:'Lingkaran', kotak:'Kotak', segitiga:'Segitiga', belah:'Belah ketupat', bintang:'Bintang' };
+const ASET = [
+  { k:'gardu', label:'Gardu / panel induk', mode:['tetap','status','kondisi','cluster','area'] },
+  { k:'panel', label:'Panel listrik',       mode:['tetap','status','kondisi','cluster','area'] },
+  { k:'pju',   label:'Titik PJU',           mode:['tetap','cluster','area','lampu'] },
+  { k:'petir', label:'Penangkal petir',     mode:['tetap','cluster','area'] }
+];
+const NAMA_MODE = { tetap:'Satu warna', status:'Per status', kondisi:'Per kondisi',
+                    cluster:'Per cluster', area:'Per area', lampu:'Per jenis lampu' };
+const LAYER_AWAL = {
+  gardu:{ tampil:true, bentuk:'lingkaran', mode:'tetap',  warna:'#ef4444', ukuran:22 },
+  panel:{ tampil:true, bentuk:'kotak',     mode:'status', warna:'#10d9a3', ukuran:16 },
+  pju:  { tampil:true, bentuk:'lingkaran', mode:'tetap',  warna:'#f59e0b', ukuran:10 },
+  petir:{ tampil:true, bentuk:'segitiga',  mode:'tetap',  warna:'#a855f7', ukuran:14 },
+  kabel:{ tampil:true },
+  cluster:null            // null = semua cluster
+};
+let layer = (() => {
+  try{ return Object.assign(JSON.parse(JSON.stringify(LAYER_AWAL)), JSON.parse(localStorage.getItem('listriktmd_layer') || '{}')); }
+  catch{ return JSON.parse(JSON.stringify(LAYER_AWAL)); }
+})();
+const simpanLayer = () => { try{ localStorage.setItem('listriktmd_layer', JSON.stringify(layer)); }catch(e){} };
+
+const IDX = { cluster:new Map(), area:new Map(), lampu:new Map() };
+function bangunIndeks(){
+  const isi = (m, arr) => { m.clear(); [...new Set(arr.filter(Boolean))].sort().forEach((v,i)=>m.set(v,i)); };
+  isi(IDX.cluster, [...panels.map(p=>p.cluster), ...titiks.map(t=>t.cluster)]);
+  isi(IDX.area,    [...panels.map(p=>p.area),    ...titiks.map(t=>t.area)]);
+  isi(IDX.lampu,   titiks.map(t=>t.jenisLampu));
+}
+const warnaIdx = (m, v) => v ? PALET[(m.get(v) ?? 0) % PALET.length] : '#64748b';
+function warnaObjek(o, konf){
+  switch(konf.mode){
+    case 'status':  return WARNA_STATUS[tone(o.status)] || konf.warna;
+    case 'kondisi': return WARNA_KONDISI[o.kondisi] || '#64748b';
+    case 'cluster': return warnaIdx(IDX.cluster, o.cluster);
+    case 'area':    return warnaIdx(IDX.area, o.area);
+    case 'lampu':   return warnaIdx(IDX.lampu, o.jenisLampu);
+    default:        return konf.warna;
+  }
+}
+const clusterLolos = o => !layer.cluster || layer.cluster.includes(o.cluster || '');
+function ikonBentuk(warna, bentuk, ukuran, extra){
+  return L.divIcon({ className:'', iconSize:[ukuran,ukuran], iconAnchor:[ukuran/2,ukuran/2],
+    html:`<div class="bentuk b-${bentuk} ${extra||''}" style="width:${ukuran}px;height:${ukuran}px;background:${warna}"></div>` });
+}
+
+/* ---------- panel pengaturan layer ---------- */
+function renderPanelLayer(){
+  bangunIndeks();
+  $('#layerAset').innerHTML = ASET.map(a => {
+    const k = layer[a.k];
+    return `<div class="baris-layer">
+      <label class="flex items-center gap-2 font-semibold text-xs text-white">
+        <input type="checkbox" data-lay="${a.k}" data-f="tampil" ${k.tampil?'checked':''}> ${a.label}
+      </label>
+      <div class="grid grid-cols-2 gap-2 mt-1.5">
+        <label class="text-[11px]">Bentuk
+          <select data-lay="${a.k}" data-f="bentuk">${BENTUK.map(b=>`<option value="${b}" ${b===k.bentuk?'selected':''}>${NAMA_BENTUK[b]}</option>`).join('')}</select>
+        </label>
+        <label class="text-[11px]">Warna
+          <select data-lay="${a.k}" data-f="mode">${a.mode.map(m=>`<option value="${m}" ${m===k.mode?'selected':''}>${NAMA_MODE[m]}</option>`).join('')}</select>
+        </label>
+        ${k.mode === 'tetap' ? `<label class="text-[11px] col-span-2">Pilih warna
+          <input type="color" data-lay="${a.k}" data-f="warna" value="${k.warna}"></label>` : ''}
+      </div></div>`;
+  }).join('') + `<label class="flex items-center gap-2 text-xs font-semibold text-white mb-1">
+      <input type="checkbox" data-lay="kabel" data-f="tampil" ${layer.kabel.tampil?'checked':''}> Jalur kabel</label>`;
+
+  const semua = [...IDX.cluster.keys()];
+  const cari = ($('#layerClusterCari').value || '').toLowerCase();
+  const aktif = layer.cluster;
+  $('#layerClusterInfo').textContent = aktif ? `${aktif.length}/${semua.length}` : `semua (${semua.length})`;
+  $('#layerCluster').innerHTML = semua.filter(c => !cari || c.toLowerCase().includes(cari)).map(c =>
+    `<label class="flex items-center gap-2 py-0.5">
+      <input type="checkbox" data-cl="${esc(c)}" ${(!aktif || aktif.includes(c)) ? 'checked' : ''}>
+      <span class="swatch" style="background:${warnaIdx(IDX.cluster, c)}"></span>${esc(c)}</label>`).join('');
+
+  /* legenda hanya untuk mode warna yang sedang dipakai */
+  const pakai = new Set(ASET.filter(a => layer[a.k].tampil).map(a => layer[a.k].mode));
+  let leg = '';
+  const daftar = (judul, m) => `<div class="font-semibold mb-1 mt-1">${judul}</div>` +
+    [...m.keys()].slice(0,40).map(v => `<div><span class="swatch" style="background:${warnaIdx(m,v)}"></span>${esc(v)}</div>`).join('') +
+    (m.size > 40 ? `<div class="text-slate-500">…${m.size-40} lainnya</div>` : '');
+  if(pakai.has('status')) leg += `<div class="font-semibold mb-1">Status</div>` +
+    STATUS.map(st=>`<div><span class="swatch" style="background:${WARNA_STATUS[tone(st)]}"></span>${st}</div>`).join('');
+  if(pakai.has('kondisi')) leg += `<div class="font-semibold mb-1 mt-1">Kondisi</div>` +
+    KONDISI.map(kd=>`<div><span class="swatch" style="background:${WARNA_KONDISI[kd]}"></span>${kd}</div>`).join('');
+  if(pakai.has('cluster')) leg += daftar('Cluster', IDX.cluster);
+  if(pakai.has('area'))    leg += daftar('Area', IDX.area);
+  if(pakai.has('lampu'))   leg += daftar('Jenis lampu', IDX.lampu);
+  $('#layerLegenda').innerHTML = leg || '<span class="text-slate-500">Semua layer memakai satu warna.</span>';
+  lucide.createIcons();
+}
 function renderTitikPeta(){
   lapisTitik.clearLayers();
   if(!$('#cbTitik').checked) return;
-  const f = titiks.filter(t => (!state.cluster || t.cluster === state.cluster) &&
-                               (!state.area || t.area === state.area));
+  const dekat = bandZoom() === 'dekat';
+  const layar = dekat ? map.getBounds().pad(0.25) : null;
+  const konfDari = t => t.jenis === 'Penangkal Petir' ? layer.petir : layer.pju;
+  const f = titiks.filter(t => {
+    const konf = konfDari(t);
+    if(!konf.tampil) return false;
+    if(state.cluster && t.cluster !== state.cluster) return false;
+    if(state.area && t.area !== state.area) return false;
+    if(!clusterLolos(t)) return false;
+    if(t.lat === '' || t.lng === '' || !isFinite(+t.lat) || !isFinite(+t.lng)) return false;
+    if(dekat && layar && !layar.contains([+t.lat, +t.lng])) return false;
+    return true;
+  });
+  const pakaiBentuk = dekat && f.length <= 1200;
   f.forEach(t => {
-    if(t.lat === '' || t.lng === '' || !isFinite(+t.lat) || !isFinite(+t.lng)) return;
-    const m = L.circleMarker([+t.lat, +t.lng], { renderer:kanvas, radius:bandZoom()==='dekat'?5:2.5, weight:1,
-      color:'#0b1017', fillColor:WARNA_TITIK[t.jenis] || '#94a3b8', fillOpacity:.9 }).addTo(lapisTitik);
+    const konf = konfDari(t);
+    const w = warnaObjek(t, konf);
+    const c = [+t.lat, +t.lng];
+    const m = pakaiBentuk
+      ? L.marker(c, { icon:ikonBentuk(w, konf.bentuk, konf.ukuran || 12) }).addTo(lapisTitik)
+      : L.circleMarker(c, { renderer:kanvas, radius:dekat?5:2.5, weight:1,
+          color:'#0b1017', fillColor:w, fillOpacity:.9 }).addTo(lapisTitik);
     m.bindPopup(`<div class="text-sm"><div class="font-bold">${esc(t.kode)}</div>
       <div class="text-xs mt-1">${esc(t.jenis)}${t.kodeAsal ? ' · ' + esc(t.kodeAsal) : ''}</div>
       <div class="text-xs">${esc(t.cluster||'')} ${esc(t.area||'')}</div>
@@ -1244,7 +1403,7 @@ function renderMap(){
   renderTitikPeta();
   const tampilLabel = $('#cbLabel').checked;
 
-  kabels.forEach(k => {
+  if(layer.kabel.tampil) kabels.forEach(k => {
     const t = (k.titik || []).filter(x => Array.isArray(x) && x.length === 2);
     if(t.length < 2) return;
     const udara = /Udara/i.test(k.sistem || '') || k.status === 'Rencana';
@@ -1268,28 +1427,37 @@ function renderMap(){
   const dekat = bandZoom() === 'dekat';
   bandTerakhir = bandZoom();
   const layar = dekat ? map.getBounds().pad(0.25) : null;
-  terfilter().forEach(p => {
-    const c = koor(p); if(!c) return;
+  const konfPanel = p => isInduk(p) ? layer.gardu : layer.panel;
 
+  const tampil = terfilter().filter(p => {
+    if(!konfPanel(p).tampil) return false;
+    if(!clusterLolos(p)) return false;
+    const c = koor(p); if(!c) return false;
     /* zoom dekat: lewati panel di luar layar agar jumlah penanda tetap wajar */
-    if(dekat && layar && !layar.contains(c) && !isInduk(p)) return;
+    if(dekat && layar && !layar.contains(c) && !isInduk(p)) return false;
+    return true;
+  });
+  const pakaiBentuk = modePindah || (dekat && tampil.length <= 1200) ;
 
-    /* zoom jauh: panel biasa cukup titik kecil, hanya gardu/induk yang jadi penanda besar */
-    if(!dekat && !modePindah && !isInduk(p)){
+  tampil.forEach(p => {
+    const c = koor(p);
+    const konf = konfPanel(p);
+    const w = warnaObjek(p, konf);
+
+    /* terlalu banyak penanda: pakai titik kanvas supaya peta tetap ringan */
+    if(!pakaiBentuk && !isInduk(p)){
       const cm = L.circleMarker(c, { renderer:kanvas, radius:3.5, weight:1, color:'#0b1017',
-        fillColor:WARNA_STATUS[tone(p.status)], fillOpacity:.95 }).addTo(lapisPanel);
+        fillColor:w, fillOpacity:.95 }).addTo(lapisPanel);
       cm.on('click', () => modeGambar ? pilihPanelGambar(p) : bukaDetail(p.id));
       cm.bindTooltip(`${p.kode ? p.kode + ' · ' : ''}${p.nama}`, { direction:'top' });
       return;
     }
 
-    const kelas = `pin pin-${tone(p.status)} ${isInduk(p) ? 'pin-induk' : ''}` +
-      (modePindah ? ' pin-geser' : '') +
-      ((modeGambar && (gambar.dari === p.id || gambar.ke === p.id)) ? ' pin-pilih' : '');
+    const extra = (modePindah ? 'pin-geser ' : '') +
+      ((modeGambar && (gambar.dari === p.id || gambar.ke === p.id)) ? 'pin-pilih' : '');
     const mk = L.marker(c, {
       draggable: modePindah && bolehEdit(),
-      icon: L.divIcon({ className:'', html:`<div class="${kelas}" title="${esc(p.kode)}"></div>`,
-                        iconSize:[20,20], iconAnchor:[10,10] })
+      icon: ikonBentuk(w, konf.bentuk, konf.ukuran || 16, extra)
     }).addTo(lapisPanel);
     mk.on('click', () => {
       if(modeGambar) return pilihPanelGambar(p);
@@ -1310,7 +1478,9 @@ function renderMap(){
     if(!modeGambar) mk.bindTooltip(`${p.kode ? p.kode + ' · ' : ''}${p.nama}`, { direction:'top' });
   });
 
-  const hz = $('#hintZoom'); if(hz) hz.hidden = dekat;
+  const hz = $('#hintZoom');
+  if(hz){ hz.hidden = pakaiBentuk;
+    hz.textContent = 'Terlalu banyak penanda di layar — panel digambar sebagai titik kecil. Perbesar peta atau saring lewat Layer untuk melihat bentuk dan warnanya.'; }
   if(!pasSekali){ pasSekali = true; setTimeout(paskan, 150); }
 }
 /* kalau panel digeser, ujung kabel yang menempel ikut pindah */
@@ -1969,6 +2139,8 @@ async function imporTitik(file){
     while(dipakai.has(v)) v = uid('t');
     dipakai.add(v); return v;
   };
+  const titikLama = new Map(titiks.filter(t=>t.kode).map(t=>[t.kode, t]));
+  let diperbaruiT = 0;
   const baru = rows.map(r => ({
     id:idUntuk(r.kode), kode:r.kode || uid('t'), jenis:r.jenis || 'PJU', kodeAsal:r.kodeAsal||'',
     panelIdAsal:r.panelIdAsal||'', area:r.area||'', cluster:r.cluster||'', jalan:r.jalan||'',
@@ -1976,12 +2148,20 @@ async function imporTitik(file){
     jenisTiang:r.jenisTiang||'', tinggiM:r.tinggiM||'', jmlLampu:r.jmlLampu||'',
     jenisLampu:r.jenisLampu||'', dayaW:r.dayaW||'', stang:r.stang||'', fidAsal:r.fidAsal||'',
     catatan:r.catatan||''
-  }));
+  })).map(t => {
+    const w = titikLama.get(t.kode);
+    if(!w) return t;
+    const gabung = { ...w };
+    Object.entries(t).forEach(([k, v]) => { if(k !== 'id' && v !== '' && v != null) gabung[k] = v; });
+    gabung.id = t.id; diperbaruiT++;
+    return gabung;
+  });
   try{
     toast(`Mengunggah ${baru.length} titik…`, 'warn');
     await api.simpanBanyakTitik(baru, (n, t) => { if(n % 2000 === 0) toast(`${n}/${t} titik terkirim`); });
     titiks = await api.listTitik();
-    render(); toast(`${baru.length} titik diimpor`);
+    render();
+    toast(`${baru.length} baris diproses — ${baru.length - diperbaruiT} titik baru, ${diperbaruiT} diperbarui`);
   }catch(e){ toast('Gagal impor: ' + e.message, 'err'); }
 }
 
@@ -1992,12 +2172,18 @@ async function imporPanel(file){
      ulang supaya baris lama diperbarui, bukan menabrak primary key */
   if(CLOUD){ try{ panels = await api.listPanel(); }catch(e){} }
   const idLama = new Map(panels.filter(p=>p.kode).map(p=>[p.kode, p.id]));
+  const panelLama = new Map(panels.filter(p=>p.kode).map(p=>[p.kode, p]));
   const dipakai = new Set();
   const idUntuk = kode => {
     let v = (kode && idLama.get(kode)) || uid('p');
     while(dipakai.has(v)) v = uid('p');
     dipakai.add(v); return v;
   };
+  /* CSV tidak memuat komponen dan panel sumber. Kalau kode-nya sudah ada,
+     dua hal itu dipertahankan supaya impor ulang tidak menghapus isi panel
+     dan hierarki yang sudah diisi lewat aplikasi. */
+  const warisan = kode => panelLama.get(kode) || null;
+  let dipertahankan = 0, diperbarui = 0;
   const baru = rows.map(r => ({
     id:idUntuk(r.kode), kode:r.kode||'', nama:r.nama||r.kode||'(tanpa nama)', jenis:r.jenis||'', tegangan:r.tegangan||'',
     status:STATUS.includes(r.status) ? r.status : 'Normal', kondisi:r.kondisi||'',
@@ -2008,7 +2194,25 @@ async function imporPanel(file){
     amp:r.amp||'', meter:r.meter||'', merk:r.merk||'', tglPasang:r.tglPasang||'', pic:r.pic||'',
     jmlUnit:r.jmlUnit||'', jmlPju:r.jmlPju||'', fasilitas:r.fasilitas||'', unit:r.unit||'',
     catatan:r.catatan||'', komponen:[], _sumberKode:r.sumberKode||''
-  }));
+  })).map(p => {
+    const w = warisan(p.kode);
+    if(!w) return p;
+    if((w.komponen||[]).length) dipertahankan++;
+    /* Baris yang sudah ada hanya DITAMBAL: sel CSV yang kosong tidak menimpa
+       nilai lama. Status operasi sengaja tidak pernah diambil dari CSV supaya
+       panel yang sedang Gangguan tidak diam-diam dikembalikan ke Normal. */
+    const gabung = { ...w };
+    Object.entries(p).forEach(([k, v]) => {
+      if(k === 'id' || k === 'komponen' || k === 'sumberId' || k === 'status' || k === '_sumberKode') return;
+      if(v !== '' && v !== null && v !== undefined) gabung[k] = v;
+    });
+    gabung.id = p.id;
+    gabung.komponen = w.komponen || [];
+    gabung.sumberId = p._sumberKode ? '' : (w.sumberId || '');
+    gabung._sumberKode = p._sumberKode;
+    diperbarui++;
+    return gabung;
+  });
   try{
     toast(`Mengunggah ${baru.length} panel…`, 'warn');
     await api.simpanBanyakPanel(baru.map(({_sumberKode, ...p}) => p));
@@ -2026,7 +2230,9 @@ async function imporPanel(file){
       if(CLOUD && ubah.length) await kirimBertahap('panel', ubah.map(toPanel), 'kode');
     }
     if(!CLOUD) simpanLokal();
-    render(); toast(`${baru.length} panel diimpor`);
+    render();
+    toast(`${baru.length} baris diproses — ${baru.length - diperbarui} panel baru, ${diperbarui} diperbarui` +
+      (dipertahankan ? `, komponen ${dipertahankan} panel dipertahankan` : ''));
   }catch(e){
     toast(/panel_pkey|duplicate key/.test(e.message)
       ? 'Impor gagal karena ada ID bentrok. Muat ulang halaman lalu impor lagi.'
@@ -2056,8 +2262,14 @@ async function imporKabel(file){
 
 <script>
 /* ===================== RENDER UTAMA ===================== */
+function ukurHeader(){
+  const h = document.querySelector('header');
+  if(h) document.documentElement.style.setProperty('--tinggi-header', h.offsetHeight + 'px');
+}
+addEventListener('resize', ukurHeader);
+
 function render(){
-  renderStats(); isiFilter();
+  renderStats(); isiFilter(); ukurHeader();
   $$('.tab-btn').forEach(b => {
     const aktif = b.dataset.tab === state.tab;
     b.classList.toggle('bg-cyan2', aktif); b.classList.toggle('text-ink-900', aktif);
@@ -2098,6 +2310,31 @@ $('#btnTambahKabel').onclick = () => bolehEdit() ? bukaKabel(null) : toast('Pera
 $('#btnPaskan').onclick = paskan;
 $('#cbLabel').onchange = renderMap;
 $('#cbTitik').onchange = renderMap;
+$('#btnLayer').onclick = () => {
+  const p = $('#panelLayer');
+  p.hidden = !p.hidden;
+  if(!p.hidden) renderPanelLayer();
+};
+$('#layerTutup').onclick = () => $('#panelLayer').hidden = true;
+$('#panelLayer').addEventListener('change', e => {
+  const el = e.target;
+  if(el.dataset.lay){
+    const k = layer[el.dataset.lay], f = el.dataset.f;
+    k[f] = el.type === 'checkbox' ? el.checked : el.value;
+    simpanLayer(); renderPanelLayer(); renderMap(); return;
+  }
+  if(el.dataset.cl !== undefined){
+    const semua = [...IDX.cluster.keys()];
+    let aktif = layer.cluster ? [...layer.cluster] : [...semua];
+    aktif = el.checked ? [...new Set([...aktif, el.dataset.cl])] : aktif.filter(c => c !== el.dataset.cl);
+    layer.cluster = aktif.length === semua.length ? null : aktif;
+    simpanLayer(); renderPanelLayer(); renderMap();
+  }
+});
+$('#layerClusterSemua').onclick  = () => { layer.cluster = null; simpanLayer(); renderPanelLayer(); renderMap(); };
+$('#layerClusterKosong').onclick = () => { layer.cluster = []; simpanLayer(); renderPanelLayer(); renderMap(); };
+let tCl; $('#layerClusterCari').addEventListener('input', () => { clearTimeout(tCl); tCl = setTimeout(renderPanelLayer, 150); });
+
 $('#btnLegenda').onclick = () => { $('#legenda').hidden = false; $('#btnLegenda').hidden = true; lucide.createIcons(); };
 $('#legendaTutup').onclick = () => { $('#legenda').hidden = true; $('#btnLegenda').hidden = false; };
 let tTitik; $('#titikQ').addEventListener('input', () => { clearTimeout(tTitik); tTitik = setTimeout(renderTitik, 180); });
