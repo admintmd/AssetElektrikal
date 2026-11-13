@@ -24,6 +24,7 @@
 ===================================================================== */
 const SUPABASE_URL      = "https://sagwceqtknklpgwhgtaj.supabase.co";   // contoh: "https://abcdefgh.supabase.co"
 const SUPABASE_ANON_KEY = "sb_publishable_BvD6CyYx2Zy_GoXaG2pjuA_Oz8FOHPT";   // anon / publishable key (bukan service_role)
+
 /* Pendaftaran mandiri. false = hanya Administrator yang membuat akun lewat
    Supabase Dashboard > Authentication > Users > Add user (centang auto confirm). */
 const ALLOW_SIGNUP = false;
@@ -676,7 +677,13 @@ select,input[type=search]{ background:rgb(var(--c-raised)) !important; color:rgb
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uid = (p='p') => p + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+/* ID harus benar-benar unik: saat impor ribuan baris dibuat dalam milidetik
+   yang sama, 4 huruf acak tidak cukup dan menabrak primary key. */
+let _urut = 0;
+const uid = (p='p') => {
+  if(window.crypto?.randomUUID) return p + crypto.randomUUID().replace(/-/g,'').slice(0,20);
+  return p + Date.now().toString(36) + (_urut++).toString(36) + Math.random().toString(36).slice(2,8);
+};
 const num = v => (v === '' || v === null || v === undefined || isNaN(+v)) ? null : +v;
 
 const JENIS_PANEL = ['Gardu / Trafo','Panel Induk (LVMDP)','Panel Distribusi (SDP)','Panel PJU',
@@ -1954,8 +1961,16 @@ function eksporTitik(){ unduh('titik-aset.csv', keCsv(KOL_TITIK, titiks)); }
 async function imporTitik(file){
   const rows = dariCsv(await file.text());
   if(!rows.length) return toast('CSV kosong', 'err');
+  if(CLOUD){ try{ titiks = await api.listTitik(); }catch(e){} }
+  const idLama = new Map(titiks.filter(t=>t.kode).map(t=>[t.kode, t.id]));
+  const dipakai = new Set();
+  const idUntuk = kode => {
+    let v = (kode && idLama.get(kode)) || uid('t');
+    while(dipakai.has(v)) v = uid('t');
+    dipakai.add(v); return v;
+  };
   const baru = rows.map(r => ({
-    id:uid('t'), kode:r.kode || uid('t'), jenis:r.jenis || 'PJU', kodeAsal:r.kodeAsal||'',
+    id:idUntuk(r.kode), kode:r.kode || uid('t'), jenis:r.jenis || 'PJU', kodeAsal:r.kodeAsal||'',
     panelIdAsal:r.panelIdAsal||'', area:r.area||'', cluster:r.cluster||'', jalan:r.jalan||'',
     lokasi:r.lokasi||'', helper:r.helper||'', lat:r.lat||'', lng:r.lng||'',
     jenisTiang:r.jenisTiang||'', tinggiM:r.tinggiM||'', jmlLampu:r.jmlLampu||'',
@@ -1973,8 +1988,18 @@ async function imporTitik(file){
 async function imporPanel(file){
   const rows = dariCsv(await file.text());
   if(!rows.length) return toast('CSV kosong', 'err');
+  /* ambil kondisi terkini dulu: kalau kode-nya sudah ada, id lamanya dipakai
+     ulang supaya baris lama diperbarui, bukan menabrak primary key */
+  if(CLOUD){ try{ panels = await api.listPanel(); }catch(e){} }
+  const idLama = new Map(panels.filter(p=>p.kode).map(p=>[p.kode, p.id]));
+  const dipakai = new Set();
+  const idUntuk = kode => {
+    let v = (kode && idLama.get(kode)) || uid('p');
+    while(dipakai.has(v)) v = uid('p');
+    dipakai.add(v); return v;
+  };
   const baru = rows.map(r => ({
-    id:uid('p'), kode:r.kode||'', nama:r.nama||r.kode||'(tanpa nama)', jenis:r.jenis||'', tegangan:r.tegangan||'',
+    id:idUntuk(r.kode), kode:r.kode||'', nama:r.nama||r.kode||'(tanpa nama)', jenis:r.jenis||'', tegangan:r.tegangan||'',
     status:STATUS.includes(r.status) ? r.status : 'Normal', kondisi:r.kondisi||'',
     area:r.area||'', cluster:r.cluster||'', jalan:r.jalan||'',
     alamat:r.alamat||'', lat:r.lat||'', lng:r.lng||'', sumberId:'', helper:r.helper||'',
@@ -2002,14 +2027,19 @@ async function imporPanel(file){
     }
     if(!CLOUD) simpanLokal();
     render(); toast(`${baru.length} panel diimpor`);
-  }catch(e){ toast('Gagal impor: ' + e.message, 'err'); }
+  }catch(e){
+    toast(/panel_pkey|duplicate key/.test(e.message)
+      ? 'Impor gagal karena ada ID bentrok. Muat ulang halaman lalu impor lagi.'
+      : 'Gagal impor: ' + e.message, 'err');
+  }
 }
 async function imporKabel(file){
   const rows = dariCsv(await file.text());
   if(!rows.length) return toast('CSV kosong', 'err');
   const cari = kode => panels.find(p => p.kode === kode)?.id || '';
+  const idLama = new Map(kabels.filter(k=>k.kode).map(k=>[k.kode, k.id]));
   const baru = rows.map(r => ({
-    id:uid('c'), kode:r.kode||'', dari:cari(r.dariKode), ke:cari(r.keKode), jenis:r.jenis||'',
+    id:(r.kode && idLama.get(r.kode)) || uid('c'), kode:r.kode||'', dari:cari(r.dariKode), ke:cari(r.keKode), jenis:r.jenis||'',
     ukuran:r.ukuran||'', tegangan:r.tegangan||'', sistem:r.sistem||'', status:r.status||'Aktif',
     tglPasang:r.tglPasang||'', slack:+r.slack || 10, panjangUkur:r.panjangUkur||'',
     titik:String(r.titik||'').split(';').map(s => s.trim().split(/\s+/).map(Number)).filter(a => a.length===2 && a.every(isFinite)),
